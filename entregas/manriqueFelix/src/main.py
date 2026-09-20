@@ -1,16 +1,24 @@
 import random
 from persona import Persona
 
-
 class SimulacionFila:
-    DURACION_MINUTOS = 120  
+    DURACION_MINUTOS = 120
     MINUTO_ACTIVACION_EXTENDIDA = 20
     LIMITE_RECOMENDADO_FILA = 30
     UMBRAL_AVISO_PARLANTES = 25
+    FRECUENCIA_ABURRIMIENTO = 5
+    FRECUENCIA_PARLANTES = 15
+    TIEMPO_MAX_ESPERA_SIN_ABURRIRSE = 8
+    PERSONAS_ATENDIDAS_PARLANTES = 5
 
     PROB_LLEGADA_NORMAL = 0.6
     PROB_ABRIR_CAJA = 0.4
     PROB_ABURRIRSE = 0.3
+    PROB_PREFERENTE_LLEGADA_NORMAL = 0.15
+    PROB_LLEGADA_PREFERENTE_EXTRAS = 0.10
+    PROB_COLADA_ILICITA = 0.10
+    PROB_ENTREGA_COMPRAS = 0.05
+    PROB_DESISTIR_FILA_LARGA = 0.5
 
     def __init__(self):
         self.fila: list[Persona] = []
@@ -32,26 +40,31 @@ class SimulacionFila:
                 self._atender_al_frente()
 
             if random.random() < self.PROB_LLEGADA_NORMAL:
-                es_preferente = (minuto >= self.MINUTO_ACTIVACION_EXTENDIDA) and (random.random() < 0.15)
+                es_preferente = (
+                    minuto >= self.MINUTO_ACTIVACION_EXTENDIDA
+                ) and (
+                    random.random() < self.PROB_PREFERENTE_LLEGADA_NORMAL
+                )
                 self._insertar_por_llegada(minuto, es_preferente)
 
             if minuto >= self.MINUTO_ACTIVACION_EXTENDIDA:
 
-                if random.random() < 0.10:
+                if random.random() < self.PROB_LLEGADA_PREFERENTE_EXTRAS:
                     self._insertar_preferente(minuto)
 
-                if random.random() < 0.10:
+                if random.random() < self.PROB_COLADA_ILICITA:
                     self._colarse_detras_de_conocido(minuto)
 
-                if random.random() < 0.05:
+                if random.random() < self.PROB_ENTREGA_COMPRAS:
                     self._entregar_compras_a_otro()
 
-                if minuto % 5 == 0:
+                if minuto % self.FRECUENCIA_ABURRIMIENTO == 0:
                     self._procesar_aburrimiento(minuto)
 
-            if minuto % 15 == 0 and len(self.fila) > self.UMBRAL_AVISO_PARLANTES:
+            if minuto % self.FRECUENCIA_PARLANTES == 0 and len(self.fila) > self.UMBRAL_AVISO_PARLANTES:
                 print(f"[PARLANTES Min {minuto}]: «Pasen por esta caja en orden de fila»")
-                for _ in range(min(5, len(self.fila))):
+                personas_a_atender = min(self.PERSONAS_ATENDIDAS_PARLANTES, len(self.fila))
+                for _ in range(personas_a_atender):
                     self._atender_al_frente()
 
             longitud_m = len(self.fila)
@@ -65,7 +78,7 @@ class SimulacionFila:
             self.total_atendidos += 1
 
     def _evaluar_desistencia_por_fila_larga(self) -> bool:
-        if len(self.fila) >= self.LIMITE_RECOMENDADO_FILA and random.random() < 0.5:
+        if len(self.fila) >= self.LIMITE_RECOMENDADO_FILA and random.random() < self.PROB_DESISTIR_FILA_LARGA:
             self.total_desistieron_por_larga += 1
             return True
         return False
@@ -89,13 +102,11 @@ class SimulacionFila:
         self.contador_ids += 1
         nueva = Persona(self.contador_ids, minuto, preferente=True)
         self.total_colados_preferentes += 1
-
+        
         pos_insercion = 0
-        for i, persona in enumerate(self.fila):
-            if persona.preferente:
-                pos_insercion = i + 1
-            else:
-                break
+        n_elementos = len(self.fila)
+        while pos_insercion < n_elementos and self.fila[pos_insercion].preferente:
+            pos_insercion += 1
 
         self.fila.insert(pos_insercion, nueva)
 
@@ -119,7 +130,8 @@ class SimulacionFila:
     def _procesar_aburrimiento(self, minuto_actual: int):
         nueva_fila = []
         for persona in self.fila:
-            if persona.calcular_tiempo_espera(minuto_actual) > 8 and random.random() < self.PROB_ABURRIRSE:
+            tiempo_espera = persona.calcular_tiempo_espera(minuto_actual)
+            if tiempo_espera > self.TIEMPO_MAX_ESPERA_SIN_ABURRIRSE and random.random() < self.PROB_ABURRIRSE:
                 self.total_aburridos += 1
             else:
                 nueva_fila.append(persona)
