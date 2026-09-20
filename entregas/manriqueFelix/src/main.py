@@ -3,7 +3,7 @@ from persona import Persona
 
 
 class SimulacionFila:
-    DURACION_MINUTOS = 120  # 2 horas
+    DURACION_MINUTOS = 120  
     MINUTO_ACTIVACION_EXTENDIDA = 20
     LIMITE_RECOMENDADO_FILA = 30
     UMBRAL_AVISO_PARLANTES = 25
